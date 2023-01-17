@@ -1,8 +1,5 @@
-use std::time::Duration;
-
 use anyhow::Result;
 use clap::{ArgAction, Parser};
-use job_scheduler::{Job, JobScheduler};
 use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 
 use backer::backer::backer::Backer;

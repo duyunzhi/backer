@@ -7,7 +7,7 @@ compress-mode: zip
 # archive prefix. default is Archive, the backup files will be packaged in Archive-yyyy-MM-dd_HH::mm:ss.zip(tar.gz)
 archive-prefix: Archive
 # cron expression triggered by backup job. default is 0 0 0 * * *. detail see https://github.com/zslayton/cron
-job-cron: 0/10 * * * * *
+job-cron: 0 0 0 * * *
 
 # backup target, default is backup-server. supporting qiniu, aliyun oss, tencent oss
 backup-target:

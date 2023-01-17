@@ -1,13 +1,11 @@
 use std::{fs, io};
-use std::borrow::{Borrow, BorrowMut};
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
-use std::iter::FilterMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use walkdir::{DirEntry, IntoIter, WalkDir};
+use walkdir::{WalkDir};
 use zip::write::FileOptions;
 
 use crate::consts;
@@ -20,7 +18,7 @@ pub struct FileInfo {
 }
 
 impl FileInfo {
-    pub fn new(file_name: String, mut file_data: Box<Vec<u8>>) -> Self {
+    pub fn new(file_name: String, file_data: Box<Vec<u8>>) -> Self {
         Self {
             file_name: file_name.clone(),
             file_data: file_data.clone(),
@@ -54,6 +52,18 @@ pub fn is_file<P: AsRef<Path>>(path: P) -> bool {
     Path::new(path.as_ref()).is_file()
 }
 
+pub fn is_empty_dir<P: AsRef<Path>>(path: P) -> bool {
+    let mut count = 0;
+    let walk_dir = WalkDir::new(path);
+    for _ in walk_dir {
+        count += 1;
+    }
+    if count > 1 {
+        return false;
+    }
+    true
+}
+
 pub fn get_file_name<P: AsRef<Path>>(path: P) -> Result<String, Box<dyn Error>> {
     if !is_file(path.as_ref()) {
         Err(Box::new(CustomError::new(format!("path [{}] is not a file", path.as_ref().to_str().unwrap()))))
@@ -73,7 +83,7 @@ pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(buffer)
 }
 
-pub fn create_write_file<P: AsRef<Path>>(path: P, mut buf: &[u8]) -> Result<(), Box<dyn Error>> {
+pub fn create_write_file<P: AsRef<Path>>(path: P, buf: &[u8]) -> Result<(), Box<dyn Error>> {
     let mut file = File::create(path)?;
     let _ = file.write_all(buf)?;
     Ok(())
@@ -158,4 +168,8 @@ fn zip_compress<T>(its: Box<Vec<WalkDir>>, writer: T) -> zip::result::ZipResult<
 
     zip.finish()?;
     Ok(())
+}
+
+fn tar_compress() {
+
 }

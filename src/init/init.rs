@@ -1,12 +1,7 @@
-use std::error::Error;
-use std::path::Path;
-
-use home;
-use log::{info, SetLoggerError};
+use log::{info};
 use time::UtcOffset;
 
 use crate::utils::file;
-use crate::consts;
 
 pub fn init() {
     init_log();
