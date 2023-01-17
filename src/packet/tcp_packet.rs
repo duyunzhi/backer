@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::io;
-use std::io::Read;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};

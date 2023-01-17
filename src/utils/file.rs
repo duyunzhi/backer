@@ -134,9 +134,7 @@ pub fn compress_files<P: AsRef<Path>>(paths: Box<Vec<P>>, target: P, compress_ty
     let compress_file = File::create(target.as_ref())?;
     match compress_type {
         CompressType::Zip => zip_compress(walk_dirs, compress_file)?,
-        CompressType::Tar => {
-            // TODO
-        }
+        CompressType::Tar => tar_compress(walk_dirs, compress_file)?,
     }
     Ok(())
 }
@@ -170,6 +168,6 @@ fn zip_compress<T>(its: Box<Vec<WalkDir>>, writer: T) -> zip::result::ZipResult<
     Ok(())
 }
 
-fn tar_compress() {
-
+fn tar_compress<T>(_its: Box<Vec<WalkDir>>, _writer: T) -> zip::result::ZipResult<()> where T: Write + Seek {
+    todo!()
 }
