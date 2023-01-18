@@ -2,8 +2,8 @@
 backup-files:
   - /Users/duyunzhi/Desktop/test
 
-# compress mode. supported zip, tar.gz. default is zip.
-compress-mode: zip
+# compress mode. supported zip, tar.gz. default is tar.gz.
+compress-mode: tar.gz
 # archive prefix. default is Archive, the backup files will be packaged in Archive-yyyy-MM-dd_HH::mm:ss.zip(tar.gz)
 archive-prefix: Archive
 # cron expression triggered by backup job. default is 0 0 0 * * *. detail see https://github.com/zslayton/cron

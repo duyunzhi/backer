@@ -7,7 +7,7 @@ pub const TARGET_ALIYUN_OSS: &'static str = "aliyun-oss";
 pub const TARGET_TENCENT_OSS: &'static str = "tencent-oss";
 
 pub const COMPRESS_MODE_ZIP: &'static str = "zip";
-pub const COMPRESS_MODE_TAR: &'static str = "tar";
+pub const COMPRESS_MODE_TAR: &'static str = "tar.gz";
 
 pub const DEFAULT_ARCHIVE_PREFIX: &'static str = "Archive";
 

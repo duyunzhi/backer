@@ -3,6 +3,8 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
+use flate2::Compression;
+use flate2::write::GzEncoder;
 
 use serde::{Deserialize, Serialize};
 use walkdir::{WalkDir};
@@ -125,49 +127,84 @@ pub fn get_archive_dir_path() -> PathBuf {
     user_home_dir.join(consts::ARCHIVE_DIR_SUFFIX)
 }
 
-pub fn compress_files<P: AsRef<Path>>(paths: Box<Vec<P>>, target: P, compress_type: &CompressType) -> Result<(), Box<dyn Error>> {
-    let mut walk_dirs: Box<Vec<WalkDir>> = Box::new(Vec::new());
-    for path in paths.into_iter() {
-        let walk_dir = WalkDir::new(path.as_ref());
-        walk_dirs.push(walk_dir);
-    }
+pub fn compress_files<P: AsRef<Path>>(paths: Vec<P>, target: P, compress_type: CompressType) -> Result<(), Box<dyn Error>> {
     let compress_file = File::create(target.as_ref())?;
     match compress_type {
-        CompressType::Zip => zip_compress(walk_dirs, compress_file)?,
-        CompressType::Tar => tar_compress(walk_dirs, compress_file)?,
+        CompressType::Zip => zip_compress(paths, compress_file)?,
+        CompressType::Tar => tar_compress(paths, compress_file)?,
     }
     Ok(())
 }
 
-fn zip_compress<T>(its: Box<Vec<WalkDir>>, writer: T) -> zip::result::ZipResult<()> where T: Write + Seek {
-    let mut zip = zip::ZipWriter::new(writer);
+fn zip_compress<P: AsRef<Path>, T>(paths: Vec<P>, writer: T) -> io::Result<()> where T: Write + Seek {
+    let mut zip_writer = zip::ZipWriter::new(writer);
     let options = FileOptions::default()
         .compression_method(zip::CompressionMethod::Bzip2)
         .unix_permissions(0o755);
-    let mut buffer = Vec::new();
-    for walk_dir in its.into_iter() {
-        let it = &mut walk_dir.into_iter().filter_map(|e| e.ok());
-        for entry in it {
-            let path = entry.path();
-            let prefix = path.parent().map_or_else(|| "/", |p| p.to_str().unwrap());
-            let name = path.strip_prefix(Path::new(prefix)).unwrap();
-            let parent = path.parent().unwrap();
-            let name = parent.strip_prefix(parent.parent().unwrap()).unwrap().join(name);
-            if path.is_file() {
-                // println!("adding file {:?} as {:?} ...", path, name);
-                zip.start_file(name.to_string_lossy(), options)?;
-                let mut f = File::open(path)?;
-                f.read_to_end(&mut buffer)?;
-                zip.write_all(&buffer)?;
-                buffer.clear();
+    for src_path in paths.into_iter() {
+        if Path::new(src_path.as_ref()).is_dir() {
+            let walk_dir = WalkDir::new(src_path.as_ref());
+            let mut buffer = Vec::new();
+            let it = &mut walk_dir.into_iter().filter_map(|e| e.ok());
+            for entry in it {
+                let path = entry.path();
+                let tail = Path::new(src_path.as_ref()).file_name().unwrap();
+                let name = path.strip_prefix(Path::new(src_path.as_ref())).unwrap();
+
+                let prefix: String;
+                if tail.is_empty() {
+                    prefix = format!("archive/{}", name.to_str().unwrap());
+                } else {
+                    prefix = format!("archive/{}/{}", tail.to_str().unwrap(), name.to_str().unwrap());
+                }
+                let archive = Path::new(prefix.as_str());
+                if path.is_file() {
+                    #[allow(deprecated)]
+                    zip_writer.start_file_from_path(archive, options)?;
+                    let mut f = File::open(path)?;
+
+                    f.read_to_end(&mut buffer)?;
+                    zip_writer.write_all(&*buffer)?;
+                    buffer.clear();
+                } else {
+                    #[allow(deprecated)]
+                    zip_writer.add_directory_from_path(archive, options)?;
+                }
             }
+        } else if Path::new(src_path.as_ref()).is_file() {
+            let path = Path::new(src_path.as_ref());
+            let file_name = get_file_name(path).unwrap();
+            let prefix = format!("archive/{}", file_name);
+            let archive = Path::new(prefix.as_str());
+
+            let mut buffer = Vec::new();
+            #[allow(deprecated)]
+            zip_writer.start_file_from_path(archive, options)?;
+            let mut f = File::open(path)?;
+
+            f.read_to_end(&mut buffer)?;
+            zip_writer.write_all(&*buffer)?;
         }
     }
-
-    zip.finish()?;
+    zip_writer.finish()?;
     Ok(())
 }
 
-fn tar_compress<T>(_its: Box<Vec<WalkDir>>, _writer: T) -> zip::result::ZipResult<()> where T: Write + Seek {
-    todo!()
+fn tar_compress<P: AsRef<Path>, T>(paths: Vec<P>, writer: T) -> io::Result<()> where T: Write + Seek {
+    let enc = GzEncoder::new(writer, Compression::default());
+    let mut tar = tar::Builder::new(enc);
+
+    for path in paths.into_iter() {
+        if is_dir(path.as_ref()) {
+            let p = Path::new(path.as_ref());
+            let suffix_path = p.file_name().unwrap().to_str().unwrap().to_string();
+            tar.append_dir_all(format!("archive/{}", suffix_path), path)?;
+        } else if is_file(path.as_ref()) {
+            let file_name = get_file_name(path.as_ref()).unwrap();
+            let mut f = File::open(path.as_ref()).unwrap();
+            tar.append_file(format!("archive/{}", file_name), &mut f)?;
+        }
+    }
+    tar.finish()?;
+    Ok(())
 }

@@ -94,7 +94,7 @@ impl Backer {
         let archive_file_name = String::from(format!("Archive-{}.{}", now, mode));
         let target_path = file::get_archive_dir_path().join(archive_file_name).to_str().unwrap().to_string();
 
-        let res = file::compress_files(Box::new(backup_files), target_path.clone(), &compress_mode);
+        let res = file::compress_files(backup_files, target_path.clone(), compress_mode);
         match res {
             Ok(_) => {
                 let archive_file = file::read_file_info(target_path.clone());
