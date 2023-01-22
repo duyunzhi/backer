@@ -1,0 +1,16 @@
+[Unit]
+Description=backer
+
+[Service]
+EnvironmentFile=-/etc/environment
+EnvironmentFile=-/etc/sysconfig/backer
+ExecStart=/usr/bin/backer -c /etc/backer/backer.yaml
+Restart=always
+RestartSec=10s
+TimeoutStartSec=120
+TimeoutStopSec=15
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

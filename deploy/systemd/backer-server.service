@@ -1,0 +1,16 @@
+[Unit]
+Description=backer-server
+
+[Service]
+EnvironmentFile=-/etc/environment
+EnvironmentFile=-/etc/sysconfig/backer-server
+ExecStart=/usr/bin/backer-server
+Restart=always
+RestartSec=10s
+TimeoutStartSec=120
+TimeoutStopSec=15
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
