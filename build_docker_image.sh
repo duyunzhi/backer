@@ -13,8 +13,8 @@ docker build -f deploy/docker/Dockerfile-backer -t ${REPO_URL}/${BACKER_IMAGE_NA
 docker build -f deploy/docker/Dockerfile-backer-server -t ${REPO_URL}/${BACKER_SERVER_IMAGE_NAME}:"${VERSION}" .
 
 # tag latest image
-docket tag ${REPO_URL}/${BACKER_IMAGE_NAME}:"${VERSION}" ${REPO_URL}/${BACKER_IMAGE_NAME}:"${LATEST_VERSION}"
-docket tag ${REPO_URL}/${BACKER_SERVER_IMAGE_NAME}:"${VERSION}" ${REPO_URL}/${BACKER_SERVER_IMAGE_NAME}:"${LATEST_VERSION}"
+docker tag ${REPO_URL}/${BACKER_IMAGE_NAME}:"${VERSION}" ${REPO_URL}/${BACKER_IMAGE_NAME}:"${LATEST_VERSION}"
+docker tag ${REPO_URL}/${BACKER_SERVER_IMAGE_NAME}:"${VERSION}" ${REPO_URL}/${BACKER_SERVER_IMAGE_NAME}:"${LATEST_VERSION}"
 
 # push to repo
 docker push ${REPO_URL}/${BACKER_IMAGE_NAME}:"${VERSION}"
