@@ -21,6 +21,12 @@ pub enum ConfigError {
     RuntimeConfigInvalid(String),
     #[error("yaml config invalid: {0}")]
     YamlConfigInvalid(String),
+    #[error("qiniu access key is empty")]
+    QiniuAccessKeyEmpty,
+    #[error("qiniu secret key is empty")]
+    QiniuSecretKeyEmpty,
+    #[error("qiniu bucket name is empty")]
+    QiniuBucketNameEmpty,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -32,9 +38,9 @@ pub struct BackerConfig {
     pub job_cron: String,
     pub backup_target: Vec<String>,
     pub backer_server: BackerServer,
-    pub qiniu_server: QiniuServer,
-    pub aliyun_oss_server: AliyunOssServer,
-    pub tencent_oss_server: TencentOssServer,
+    pub qiniu: QiniuServer,
+    pub aliyun_oss: AliyunOssServer,
+    pub tencent_oss: TencentOssServer,
 }
 
 impl BackerConfig {
@@ -72,6 +78,16 @@ impl BackerConfig {
                             return Err(ConfigError::BackerServerIpInvalid);
                         }
                     }
+                } else if cfg.backup_target[i] == consts::TARGET_QINIU {
+                    if cfg.qiniu.access_key.len() == 0 {
+                        return Err(ConfigError::QiniuAccessKeyEmpty);
+                    }
+                    if cfg.qiniu.secret_key.len() == 0 {
+                        return Err(ConfigError::QiniuSecretKeyEmpty);
+                    }
+                    if cfg.qiniu.bucket_name.len() == 0 {
+                        return Err(ConfigError::QiniuBucketNameEmpty);
+                    }
                 }
             }
 
@@ -84,14 +100,14 @@ impl Default for BackerConfig {
     fn default() -> Self {
         Self {
             backup_files: vec![],
-            compress_mode: String::from("zip"),
+            compress_mode: String::from("tar.gz"),
             archive_prefix: String::from("Archive"),
             job_cron: String::from("0 0 0 * * *"),
             backup_target: vec![],
             backer_server: BackerServer::default(),
-            qiniu_server: QiniuServer::default(),
-            aliyun_oss_server: AliyunOssServer::default(),
-            tencent_oss_server: TencentOssServer::default(),
+            qiniu: QiniuServer::default(),
+            aliyun_oss: AliyunOssServer::default(),
+            tencent_oss: TencentOssServer::default(),
         }
     }
 }
@@ -114,11 +130,19 @@ impl Default for BackerServer {
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(default, rename_all = "kebab-case")]
-pub struct QiniuServer {}
+pub struct QiniuServer {
+    pub access_key: String,
+    pub secret_key: String,
+    pub bucket_name: String,
+}
 
 impl Default for QiniuServer {
     fn default() -> Self {
-        Self {}
+        Self {
+            access_key: String::from(""),
+            secret_key: String::from(""),
+            bucket_name: String::from(""),
+        }
     }
 }
 

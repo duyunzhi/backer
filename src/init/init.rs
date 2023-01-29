@@ -1,4 +1,4 @@
-use log::{info};
+use log::{info, LevelFilter};
 use time::UtcOffset;
 
 use crate::utils::file;
@@ -10,7 +10,7 @@ pub fn init() {
 
 fn init_log() {
     let utc = UtcOffset::current_local_offset().unwrap();
-    simple_logger::SimpleLogger::new().with_utc_offset(utc).init().unwrap()
+    simple_logger::SimpleLogger::new().with_level(LevelFilter::Info).with_utc_offset(utc).init().unwrap()
 }
 
 fn init_archive_dir() {

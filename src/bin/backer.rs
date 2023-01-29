@@ -40,7 +40,8 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let mut backer = Backer::start(&opts.config_file)?;
+    let backer = Backer::new()?;
+    backer.start(&opts.config_file)?;
     wait_on_signals();
     backer.stop();
     Ok(())

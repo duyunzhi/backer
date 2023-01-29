@@ -16,13 +16,15 @@ use crate::errors::CustomError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
     pub file_name: String,
+    pub absolute_path: String,
     pub file_data: Box<Vec<u8>>,
 }
 
 impl FileInfo {
-    pub fn new(file_name: String, file_data: Box<Vec<u8>>) -> Self {
+    pub fn new(file_name: String, absolute_path: String, file_data: Box<Vec<u8>>) -> Self {
         Self {
-            file_name: file_name.clone(),
+            file_name,
+            absolute_path,
             file_data: file_data.clone(),
         }
     }
@@ -32,6 +34,7 @@ impl Default for FileInfo {
     fn default() -> Self {
         Self {
             file_name: String::from(""),
+            absolute_path: String::from(""),
             file_data: Box::new(vec![]),
         }
     }
@@ -100,6 +103,7 @@ pub fn read_file_info<P: AsRef<Path>>(path: P) -> Result<FileInfo, Box<dyn Error
             match file_name {
                 Ok(file_name) => {
                     file_info.file_name = file_name;
+                    file_info.absolute_path = path.as_ref().to_string_lossy().to_string();
                     file_info.file_data = Box::new(file_bytes);
                 }
                 Err(e) => {

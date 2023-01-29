@@ -17,8 +17,10 @@ backer-server:
   ip: 127.0.0.1
   port: 9618
 
-# todo
 qiniu:
+  access-key:
+  secret-key:
+  bucket-name:
 
 # todo
 aliyun-oss:
