@@ -32,13 +32,13 @@ fn wait_on_signals() {
 }
 
 fn main() -> Result<()> {
-    init();
     let opts = Opts::parse();
 
     if opts.version {
         println!("{}", VERSION_INFO);
         return Ok(());
     }
+    init();
 
     let backer = Backer::new()?;
     backer.start(&opts.config_file)?;

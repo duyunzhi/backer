@@ -74,13 +74,14 @@ impl Handler for BackerServerHandle {
 }
 
 fn main() {
-    init();
     let mut opts = Opts::parse();
 
     if opts.version {
         println!("{}", VERSION_INFO);
         return;
     }
+
+    init();
 
     if opts.backup_dir.is_empty() {
         match home::home_dir() {
