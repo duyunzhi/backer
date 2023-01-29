@@ -9,8 +9,8 @@ BACKER_IMAGE_NAME=backer
 BACKER_SERVER_IMAGE_NAME=backer-server
 
 # build image
-docker build -f deploy/docker/Dockerfile-backer -t ${REPO_URL}/${BACKER_IMAGE_NAME}:"${VERSION}" .
-docker build -f deploy/docker/Dockerfile-backer-server -t ${REPO_URL}/${BACKER_SERVER_IMAGE_NAME}:"${VERSION}" .
+docker build -f deploy/docker/Dockerfile -t ${REPO_URL}/${BACKER_IMAGE_NAME}:"${VERSION}" --target backer .
+docker build -f deploy/docker/Dockerfile -t ${REPO_URL}/${BACKER_SERVER_IMAGE_NAME}:"${VERSION}" --target backer-server .
 
 # tag latest image
 docker tag ${REPO_URL}/${BACKER_IMAGE_NAME}:"${VERSION}" ${REPO_URL}/${BACKER_IMAGE_NAME}:"${LATEST_VERSION}"
