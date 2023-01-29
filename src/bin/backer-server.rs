@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::thread;
 
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use home;
 use log::{error, info};
 use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
