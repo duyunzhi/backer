@@ -1,4 +1,4 @@
-FROM rust:alpine as builder
+FROM rust:alpine3.17 as builder
 
 WORKDIR /backer
 
@@ -11,7 +11,6 @@ RUN echo 'Asia/Shanghai' >/etc/timezone
 
 RUN cp deploy/docker/rust-proxy-config.toml /usr/local/cargo/config.toml \
     && RUSTFLAGS="-D warnings" \
-    && rustup override set nightly \
     && cargo clean \
     && cargo build --release --target=x86_64-unknown-linux-musl
 
