@@ -1,5 +1,8 @@
 use std::fmt;
 
+pub const BACKER_VERSION: &'static str = "0.1.1";
+pub const BACKER_SERVER_VERSION: &'static str = "0.1.1";
+
 pub struct VersionInfo {
     pub name: &'static str,
     pub version: &'static str,
@@ -11,11 +14,10 @@ impl fmt::Display for VersionInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "
-            Name: {}
-            Version: {}
-            Compiler: {}
-            CompileTime: {}",
+            "    Name: {}
+    Version: {}
+    Compiler: {}
+    CompileTime: {}",
             self.name,
             self.version,
             self.compiler,

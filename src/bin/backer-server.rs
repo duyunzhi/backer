@@ -28,8 +28,8 @@ struct Opts {
 }
 
 const VERSION_INFO: &'static version::VersionInfo = &version::VersionInfo {
-    name: "backer-server",
-    version: "0.1.0",
+    name: "Backer Server",
+    version: version::BACKER_SERVER_VERSION,
     compiler: env!("RUSTC_VERSION"),
     compile_time: env!("COMPILE_TIME"),
 };
@@ -115,6 +115,7 @@ fn main() {
     thread::spawn(move || {
         thread_server.start();
     });
+    info!("backer server started! port is: {}, backup dir is: {}", opts.port, opts.backup_dir);
     wait_on_signals();
     server.stop();
 }

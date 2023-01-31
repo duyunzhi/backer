@@ -1,7 +1,7 @@
 [source.crates-io]
 registry = "https://github.com/rust-lang/crates.io-index"
 # 指定镜像
-replace-with = 'sjtu' # 如：tuna、sjtu、ustc，或者 rustcc
+replace-with = 'ustc' # 如：tuna、sjtu、ustc，或者 rustcc
 
 # 注：以下源配置一个即可，无需全部
 # 目前 sjtu 相对稳定些
@@ -12,7 +12,7 @@ registry = "https://mirrors.ustc.edu.cn/crates.io-index"
 
 # 上海交通大学
 [source.sjtu]
-registry = "https://mirrors.sjtug.sjtu.edu.cn/git/crates.io-index/"
+registry = "https://mirrors.sjtug.sjtu.edu.cn/git/crates.io-index"
 
 # 清华大学
 [source.tuna]

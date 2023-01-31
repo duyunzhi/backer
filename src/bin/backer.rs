@@ -18,8 +18,8 @@ struct Opts {
 }
 
 const VERSION_INFO: &'static version::VersionInfo = &version::VersionInfo {
-    name: "backer",
-    version: "0.1.0",
+    name: "Backer",
+    version: version::BACKER_VERSION,
     compiler: env!("RUSTC_VERSION"),
     compile_time: env!("COMPILE_TIME"),
 };

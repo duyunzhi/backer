@@ -4,7 +4,7 @@ Description=backer-server
 [Service]
 EnvironmentFile=-/etc/environment
 EnvironmentFile=-/etc/sysconfig/backer-server
-ExecStart=/usr/bin/backer-server
+ExecStart=/usr/local/bin/backer-server -p 9618 --backup-dir /opt/backer_dir
 Restart=always
 RestartSec=10s
 TimeoutStartSec=120
