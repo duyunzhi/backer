@@ -16,7 +16,7 @@ RUN cp deploy/docker/rust-proxy-config.toml /usr/local/cargo/config.toml \
 
 FROM alpine:latest as backer
 
-LABEL maintainer=duyunzhi<duyzmail@163.com>\
+LABEL maintainer=Yunis<duyunis@outlook.com>\
 description="backer"
 
 RUN echo -e http://mirrors.ustc.edu.cn/alpine/latest-stable/main/ > /etc/apk/repositories && apk update && apk add tzdata
@@ -30,7 +30,7 @@ ENTRYPOINT backer -c /etc/backer/backer.yaml
 
 FROM alpine:latest as backer-server
 
-LABEL maintainer=duyunzhi<duyzmail@163.com>\
+LABEL maintainer=Yunis<duyunis@outlook.com>\
 description="backer"
 
 RUN echo -e http://mirrors.ustc.edu.cn/alpine/latest-stable/main/ > /etc/apk/repositories && apk update && apk add tzdata

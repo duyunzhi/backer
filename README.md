@@ -14,14 +14,14 @@
 download the package corresponding to your operating system:
 ### run backer
 ```bash
-wget https://github.com/duyunzhi/backer/releases/download/|latest version|/backer_x86_64-linux.tar.gz
+wget https://github.com/duyunis/backer/releases/download/|latest version|/backer_x86_64-linux.tar.gz
 tar -zxvf backer_x86_64-linux.tar.gz
 cd backer
 ./backer -c backer.yaml
 ```
 ### run backer-server
 ```bash
-wget https://github.com/duyunzhi/backer/releases/download/|latest version|/backer-server_x86_64-linux.tar.gz
+wget https://github.com/duyunis/backer/releases/download/|latest version|/backer-server_x86_64-linux.tar.gz
 tar -zxvf backer-server_x86_64-linux.tar.gz
 cd backer-server
 ./backer-server -p 9618 --backup-dir /opt/backer_dir
@@ -30,7 +30,7 @@ cd backer-server
 ## Build
 
 ```bash
-git clone https://github.com/duyunzhi/backer.git
+git clone https://github.com/duyunis/backer.git
 cd backer
 cargo build --release
 ```
@@ -51,10 +51,10 @@ docker build -f deploy/docker/Dockerfile -t backer-server:v1 --target backer-ser
 
 ### run backer in docker
 ```bash
-docker run -it -d --restart=always -v /etc/backer/backer.yaml:/etc/backer/backer.yaml -v "{dir of files to be backed up}:{dir of files configured in the backer.yaml file}" duyunzhi1/backer:latest
+docker run -it -d --restart=always -v /etc/backer/backer.yaml:/etc/backer/backer.yaml -v "{dir of files to be backed up}:{dir of files configured in the backer.yaml file}" duyunis/backer:latest
 ```
 
 ### run backer-server in docker
 ```bash
-docker run -it -d --restart=always -p 9618:9618 -v /opt/backer_dir:/opt/backer_dir  duyunzhi1/backer-server:latest
+docker run -it -d --restart=always -p 9618:9618 -v /opt/backer_dir:/opt/backer_dir  duyunis/backer-server:latest
 ```

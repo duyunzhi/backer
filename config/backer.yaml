@@ -1,6 +1,6 @@
 # files or folders that need to be backed up. multiple files are supported.
 backup-files:
-  - /Users/duyunzhi/Desktop/test
+  - /Users/Yunis/Desktop/test
 
 # compress mode. supported zip, tar.gz. default is tar.gz.
 compress-mode: tar.gz
