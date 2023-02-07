@@ -57,9 +57,7 @@ impl Backer {
 
         sched.add(Job::new(cron.parse().unwrap(), || {
             let thread_cfg = Arc::new(cfg.clone());
-            self.threads.lock().unwrap().push(self.rt.spawn(async move {
-                Self::backup_job(thread_cfg);
-            }));
+            self.backup_job(thread_cfg);
         }));
 
         loop {
@@ -92,12 +90,8 @@ impl Backer {
         info!("Gracefully stopped");
     }
 
-    fn backup_job(cfg: Arc<BackerConfig>) {
+    fn backup_job(&self, cfg: Arc<BackerConfig>) {
         info!("Executing backup job.");
-        let rt = Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
-        let mut threads: Vec<JoinHandle<()>> = Default::default();
-
-        // let backup_files = cfg.backup_files;
         let mut compress_mode = file::CompressType::Zip;
         let now = chrono::Local::now().format("%F_%T").to_string();
 
@@ -119,29 +113,29 @@ impl Backer {
                                 consts::BACKUP_TARGET_BACKER_SERVER => {
                                     let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), archive_file_info.file_data.clone());
                                     let backer_server = cfg.backer_server.clone();
-                                    threads.push(rt.spawn(async move {
-                                        Self::backup_file_to_backer_server(backer_server.clone(), file_info);
+                                    self.threads.lock().unwrap().push(self.rt.spawn(async move {
+                                        Self::backup_file_to_backer_server(backer_server.clone(), file_info).await;
                                     }));
                                 }
                                 consts::BACKUP_TARGET_QINIU => {
-                                    let qiniu = cfg.qiniu.clone();
                                     let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), Default::default());
-                                    threads.push(rt.spawn(async move {
-                                        Self::backup_file_to_qiniu(qiniu.clone(), file_info);
+                                    let qiniu = cfg.qiniu.clone();
+                                    self.threads.lock().unwrap().push(self.rt.spawn(async move {
+                                        Self::backup_file_to_qiniu(qiniu.clone(), file_info).await;
                                     }));
                                 }
                                 consts::BACKUP_TARGET_ALIYUN_OSS => {
-                                    let aliyun = cfg.aliyun_oss.clone();
                                     let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), Default::default());
-                                    threads.push(rt.spawn(async move {
-                                        Self::backup_file_to_aliyun_oss(aliyun.clone(), file_info);
+                                    let aliyun = cfg.aliyun_oss.clone();
+                                    self.threads.lock().unwrap().push(self.rt.spawn(async move {
+                                        Self::backup_file_to_aliyun_oss(aliyun.clone(), file_info).await;
                                     }));
                                 }
                                 consts::BACKUP_TARGET_TENCENT_OSS => {
-                                    let tencent = cfg.tencent_oss.clone();
                                     let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), Default::default());
-                                    threads.push(rt.spawn(async move {
-                                        Self::backup_file_to_tencent_oss(tencent.clone(), file_info);
+                                    let tencent = cfg.tencent_oss.clone();
+                                    self.threads.lock().unwrap().push(self.rt.spawn(async move {
+                                        Self::backup_file_to_tencent_oss(tencent.clone(), file_info).await;
                                     }));
                                 }
                                 _ => {
@@ -149,8 +143,8 @@ impl Backer {
                                 }
                             }
                         }
-                        rt.block_on(async move {
-                            for t in threads.drain(..) {
+                        self.rt.block_on(async move {
+                            for t in self.threads.lock().unwrap().drain(..) {
                                 let _ = t.await;
                             }
                         });
@@ -159,14 +153,15 @@ impl Backer {
                 }
                 // remove compress file
                 file::rm_file(target_path.clone()).unwrap();
+                info!("remove archive file");
             }
             Err(e) => {
-                error!("compress files failed: {}", e)
+                error!("compress files failed: {}", e);
             }
         }
     }
 
-    fn backup_file_to_backer_server(cfg: BackerServer, archive_file: file::FileInfo) {
+    async fn backup_file_to_backer_server(cfg: BackerServer, archive_file: file::FileInfo) {
         info!("start backup_file_to_backer_server");
         let addr: SocketAddr = format!("{}:{}", cfg.ip, cfg.port).parse().unwrap();
         let message = Message::FilesInfoMessage(FilesInfoMessage::new(vec![archive_file]));
@@ -174,7 +169,7 @@ impl Backer {
         info!("end backup_file_to_backer_server");
     }
 
-    fn backup_file_to_qiniu(cfg: QiniuServer, archive_file: file::FileInfo) {
+    async fn backup_file_to_qiniu(cfg: QiniuServer, archive_file: file::FileInfo) {
         info!("start backup_file_to_qiniu");
         let upload_manager = UploadManager::builder(UploadTokenSigner::new_credential_provider(
             Credential::new(cfg.access_key.as_str(), cfg.secret_key.as_str()),
@@ -188,13 +183,13 @@ impl Backer {
     }
 
     // TODO
-    fn backup_file_to_aliyun_oss(_cfg: AliyunOssServer, _archive_file: file::FileInfo) {
+    async fn backup_file_to_aliyun_oss(_cfg: AliyunOssServer, _archive_file: file::FileInfo) {
         info!("start backup_file_to_aliyun_oss");
         info!("end backup_file_to_aliyun_oss");
     }
 
     // TODO
-    fn backup_file_to_tencent_oss(_cfg: TencentOssServer, _archive_file: file::FileInfo) {
+    async fn backup_file_to_tencent_oss(_cfg: TencentOssServer, _archive_file: file::FileInfo) {
         info!("start backup_file_to_tencent_oss");
         info!("end backup_file_to_tencent_oss");
     }

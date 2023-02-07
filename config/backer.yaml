@@ -1,6 +1,6 @@
 # files or folders that need to be backed up. multiple files are supported.
 backup-files:
-  - /Users/Yunis/Desktop/test
+  - /Users/Yunis/Desktop/deepflow-yaml
 
 # compress mode. supported zip, tar.gz. default is tar.gz.
 compress-mode: tar.gz
@@ -22,8 +22,11 @@ qiniu:
   secret-key:
   bucket-name:
 
-# todo
 aliyun-oss:
+  endpoint:
+  access-key:
+  secret-key:
+  bucket-name:
 
 # todo
 tencent-oss:

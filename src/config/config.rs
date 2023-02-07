@@ -148,11 +148,21 @@ impl Default for QiniuServer {
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(default, rename_all = "kebab-case")]
-pub struct AliyunOssServer {}
+pub struct AliyunOssServer {
+    pub endpoint: String,
+    pub access_key: String,
+    pub secret_key: String,
+    pub bucket_name: String,
+}
 
 impl Default for AliyunOssServer {
     fn default() -> Self {
-        Self {}
+        Self {
+            endpoint: String::from(""),
+            access_key: String::from(""),
+            secret_key: String::from(""),
+            bucket_name: String::from(""),
+        }
     }
 }
 
