@@ -18,7 +18,6 @@ use crate::packet::message::{FileBuffer, Message, Protocol};
 use crate::packet::tcp_packet::{Dispatch, Handler, TcpClient};
 use crate::utils::file;
 
-const BACKUP_TO_BACKER_SERVER_COMPLETED: AtomicBool = AtomicBool::new(false);
 const MAX_BUFFER_LENGTH: u64 = 20480;
 
 pub enum State {
@@ -27,9 +26,12 @@ pub enum State {
 }
 
 pub type BackerState = Arc<Mutex<State>>;
+pub type CompletedState = Arc<AtomicBool>;
+
 
 pub struct Backer {
     state: BackerState,
+    completed_state: CompletedState,
     rt: Runtime,
     threads: Mutex<Vec<JoinHandle<()>>>,
 }
@@ -37,9 +39,10 @@ pub struct Backer {
 impl Backer {
     pub fn new() -> Result<Backer> {
         let state = Arc::new(Mutex::new(State::Running));
+        let completed_state = Arc::new(AtomicBool::new(false));
         let rt = Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
         let threads = Default::default();
-        Ok(Backer { state, rt, threads })
+        Ok(Backer { state, completed_state, rt, threads })
     }
 
     pub fn start<P: AsRef<Path>>(&self, config_path: P) -> Result<()> {
@@ -121,8 +124,9 @@ impl Backer {
                                         Ok(archive_file_info) => {
                                             let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), archive_file_info.file_data.clone());
                                             let backer_server = cfg.backer_server.clone();
+                                            let completed = self.completed_state.clone();
                                             self.threads.lock().unwrap().push(self.rt.spawn(async move {
-                                                Self::backup_file_to_backer_server(backer_server.clone(), file_info).await;
+                                                Self::backup_file_to_backer_server(backer_server.clone(), file_info, completed).await;
                                             }));
                                         }
                                         Err(e) => error!("read archive file failed: {}", e)
@@ -172,17 +176,17 @@ impl Backer {
         }
     }
 
-    async fn backup_file_to_backer_server(cfg: BackerServer, archive_file: file::FileInfo) {
+    async fn backup_file_to_backer_server(cfg: BackerServer, archive_file: file::FileInfo, completed: Arc<AtomicBool>) {
         info!("start backup_file_to_backer_server");
-        BACKUP_TO_BACKER_SERVER_COMPLETED.swap(false, Ordering::Relaxed);
         let addr: SocketAddr = format!("{}:{}", cfg.ip, cfg.port).parse().unwrap();
         let tcp_handler = Dispatch::new_for_client();
-        tcp_handler.add_handle(String::from("backer_handle"), Box::new(BackerHandle::new(archive_file)));
+        let handle_completed = completed.clone();
+        tcp_handler.add_handle(String::from("backer_handle"), Box::new(BackerHandle::new(archive_file, handle_completed)));
         let mut client = TcpClient::new(addr, tcp_handler);
         client.start();
         client.send_message(Message::Auth(cfg.secret));
         loop {
-            if BACKUP_TO_BACKER_SERVER_COMPLETED.load(Ordering::Relaxed) {
+            if completed.load(Ordering::Relaxed) {
                 break;
             }
         }
@@ -218,11 +222,12 @@ impl Backer {
 
 struct BackerHandle {
     archive_file: file::FileInfo,
+    completed: Arc<AtomicBool>,
 }
 
 impl BackerHandle {
-    pub fn new(archive_file: file::FileInfo) -> Self {
-        Self { archive_file }
+    pub fn new(archive_file: file::FileInfo, completed: Arc<AtomicBool>) -> Self {
+        Self { archive_file, completed }
     }
 }
 
@@ -250,12 +255,12 @@ impl Handler for BackerHandle {
                         let percents = format!("{:.0}", (completed_buf_size / fb_size) * 100.0);
                         print!("\rback up file: {}%", percents);
                     }
-                    BACKUP_TO_BACKER_SERVER_COMPLETED.swap(true, Ordering::Relaxed);
                     println!();
                     info!("end sync file.");
                 } else {
                     error!("Authorize failed!");
                 }
+                self.completed.store(true, Ordering::Relaxed);
             }
             _ => {}
         }
