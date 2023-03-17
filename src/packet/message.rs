@@ -1,17 +1,19 @@
-use std::{io};
+use std::io;
 use std::io::{Read, Write};
-use std::net::TcpStream;
-use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
+use std::net::{Shutdown, TcpStream};
 
 use anyhow::Result;
+use byteorder::{NetworkEndian, ReadBytesExt, WriteBytesExt};
+use log::error;
 use serde::{Deserialize, Serialize};
+
 use crate::utils::file::FileInfo;
 
 pub trait BaseMessage {
     // Encode message to bytes stream
     fn encode(&self) -> Result<Vec<u8>>;
     // Decode message from bytes stream
-    fn decode(buf: &[u8]) -> Self;
+    fn decode(&mut self, buf: &[u8]) -> Result<()>;
 }
 
 
@@ -34,27 +36,164 @@ impl BaseMessage for FilesInfoMessage {
         Ok(serialize)
     }
 
-    fn decode(buf: &[u8]) -> FilesInfoMessage {
-        bincode::deserialize(&buf).unwrap()
+    fn decode(&mut self, buf: &[u8]) -> Result<()> {
+        let msg = bincode::deserialize::<FilesInfoMessage>(&buf)?;
+        self.files = msg.files;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileBuffer {
+    pub is_begin: bool,
+    pub is_end: bool,
+    pub file_name: String,
+    pub buffer: Vec<u8>,
+}
+
+impl FileBuffer {
+    pub fn new(file_name: String, buffer: Vec<u8>) -> Self {
+        Self {
+            is_begin: false,
+            is_end: false,
+            file_name,
+            buffer,
+        }
+    }
+
+    pub fn get_buffer_length(&self) -> usize {
+        self.buffer.len()
+    }
+
+    pub fn cut_file_buff(&self, max_buffer_length: u64) -> Vec<Self> {
+        let mut buffers = vec![];
+        let buffer_length = self.buffer.len() as u64;
+        if max_buffer_length >= buffer_length {
+            buffers.push(Self::new_part(true, true, self.file_name.clone(), self.buffer.clone()))
+        } else {
+            let mut part_size = buffer_length / max_buffer_length;
+            if buffer_length % max_buffer_length != 0 {
+                part_size += 1
+            }
+            let buffer = self.buffer.as_slice();
+            for i in 0..part_size {
+                let part = Self::new_part(
+                    i == 0,
+                    i == part_size - 1,
+                    self.file_name.clone(),
+                    if i < part_size - 1 {
+                        let start_index = if i == 0 { 0 as usize } else { (max_buffer_length * i) as usize };
+                        let end_index = if i == 0 { max_buffer_length as usize } else { (max_buffer_length * (i + 1)) as usize };
+                        buffer[start_index..end_index].to_vec()
+                    } else {
+                        buffer[(max_buffer_length * i) as usize..buffer_length as usize].to_vec()
+                    },
+                );
+                buffers.push(part);
+            }
+        }
+        buffers
+    }
+
+    fn new_part(is_begin: bool, is_end: bool, file_name: String, buffer: Vec<u8>) -> Self {
+        Self {
+            is_begin,
+            is_end,
+            file_name,
+            buffer,
+        }
+    }
+}
+
+impl BaseMessage for FileBuffer {
+    fn encode(&self) -> Result<Vec<u8>> {
+        let serialize: Vec<u8> = bincode::serialize(&self).unwrap();
+        Ok(serialize)
+    }
+
+    fn decode(&mut self, buf: &[u8]) -> Result<()> {
+        let buffer = bincode::deserialize::<FileBuffer>(&buf)?;
+        self.is_begin = buffer.is_begin;
+        self.is_end = buffer.is_end;
+        self.file_name = buffer.file_name;
+        self.buffer = buffer.buffer;
+        Ok(())
+    }
+}
+
+impl Default for FileBuffer {
+    fn default() -> Self {
+        Self {
+            is_begin: false,
+            is_end: false,
+            file_name: String::from(""),
+            buffer: vec![],
+        }
     }
 }
 
 #[derive(Debug)]
 pub enum Message {
-    Echo(String),
-    FilesInfoMessage(FilesInfoMessage),
+    Phrase(String),
+    Auth(String),
+    Authorize(bool),
+    FileBuffer(FileBuffer),
+    Complete(bool),
 }
 
 impl Message {
-
     pub fn read_message(mut buf: &mut impl Read) -> io::Result<Message> {
         match buf.read_u8()? {
-            0 => Ok(Message::Echo(extract_string(&mut buf)?)),
-            1 => {
+            0 => Ok(Message::Phrase(extract_string(&mut buf)?)),
+            1 => Ok(Message::Auth(extract_string(&mut buf)?)),
+            2 => {
                 let message_len = buf.read_u16::<NetworkEndian>()?;
                 let mut bytes = vec![0u8; message_len as usize];
                 buf.read_exact(&mut bytes)?;
-                Ok(Message::FilesInfoMessage(BaseMessage::decode(&bytes)))
+                if bytes[0] == 1 {
+                    Ok(Message::Authorize(true))
+                } else if bytes[0] == 0 {
+                    Ok(Message::Authorize(true))
+                } else {
+                    Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "decode message failed",
+                    ))
+                }
+            }
+            3 => {
+                let message_len = buf.read_u16::<NetworkEndian>()?;
+                let mut bytes = vec![0u8; message_len as usize];
+                buf.read_exact(&mut bytes)?;
+                let mut buffer = FileBuffer::default();
+                let res = buffer.decode(&bytes);
+                match res {
+                    Ok(_) => {
+                        Ok(Message::FileBuffer(buffer))
+                    }
+                    Err(e) => {
+                        error!("decode message failed: {}", e);
+                        Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "decode message failed",
+                        ))
+                    }
+                }
+            }
+            4 => {
+                let message_len = buf.read_u16::<NetworkEndian>()?;
+                let mut bytes = vec![0u8; message_len as usize];
+                buf.read_exact(&mut bytes)?;
+                if bytes[0] == 1 {
+                    Ok(Message::Complete(true))
+                } else if bytes[0] == 0 {
+                    Ok(Message::Complete(true))
+                } else {
+                    Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "decode message failed",
+                    ))
+                }
             }
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -67,18 +206,39 @@ impl Message {
         buf.write_u8(self.into())?; // Message Type byte
         let mut bytes_written: usize = 1;
         match self {
-            Message::Echo(message) => {
+            Message::Phrase(message) => {
                 // Write the variable length message string, preceded by it's length
                 let message = message.as_bytes();
                 buf.write_u16::<NetworkEndian>(message.len() as u16)?;
                 buf.write_all(&message)?;
                 bytes_written += 2 + message.len();
-            },
-            Message::FilesInfoMessage(message) => {
+            }
+            Message::Auth(message) => {
+                // Write the variable length message string, preceded by it's length
+                let message = message.as_bytes();
+                buf.write_u16::<NetworkEndian>(message.len() as u16)?;
+                buf.write_all(&message)?;
+                bytes_written += 2 + message.len();
+            }
+            Message::Authorize(message) => {
+                let bytes: [u8; 1];
+                if *message { bytes = [1]; } else { bytes = [0]; }
+                buf.write_u16::<NetworkEndian>(bytes.len() as u16)?;
+                buf.write_all(&bytes)?;
+                bytes_written += 2 + bytes.len();
+            }
+            Message::FileBuffer(message) => {
                 let message_bytes = message.encode().unwrap();
                 buf.write_u16::<NetworkEndian>(message_bytes.len() as u16)?;
                 buf.write_all(&message_bytes)?;
                 bytes_written += 2 + message_bytes.len();
+            }
+            Message::Complete(message) => {
+                let bytes: [u8; 1];
+                if *message { bytes = [1]; } else { bytes = [0]; }
+                buf.write_u16::<NetworkEndian>(bytes.len() as u16)?;
+                buf.write_all(&bytes)?;
+                bytes_written += 2 + bytes.len();
             }
         }
         Ok(bytes_written)
@@ -88,8 +248,11 @@ impl Message {
 impl From<&Message> for u8 {
     fn from(req: &Message) -> Self {
         match req {
-            Message::Echo(_) => 0,
-            Message::FilesInfoMessage { .. } => 1,
+            Message::Phrase(_) => 0,
+            Message::Auth(_) => 1,
+            Message::Authorize(_) => 2,
+            Message::FileBuffer(_) => 3,
+            Message::Complete(_) => 4,
         }
     }
 }
@@ -130,5 +293,9 @@ impl Protocol {
     ///       so only use when a message is expected to arrive
     pub fn read_message(&mut self) -> io::Result<Message> {
         Message::read_message(&mut self.reader)
+    }
+
+    pub fn shutdown(&self) -> io::Result<()> {
+        self.stream.shutdown(Shutdown::Both)
     }
 }

@@ -94,6 +94,11 @@ pub fn create_write_file<P: AsRef<Path>>(path: P, buf: &[u8]) -> Result<(), Box<
     Ok(())
 }
 
+pub fn create_file<P: AsRef<Path>>(path: P) -> Result<File, Box<dyn Error>> {
+    let file = File::create(path)?;
+    Ok(file)
+}
+
 pub fn read_file_info<P: AsRef<Path>>(path: P) -> Result<FileInfo, Box<dyn Error>> {
     let mut file_info = FileInfo::default();
     let file_bytes = read_file(path.as_ref());
@@ -116,6 +121,11 @@ pub fn read_file_info<P: AsRef<Path>>(path: P) -> Result<FileInfo, Box<dyn Error
         }
     }
     Ok(file_info)
+}
+
+pub fn read_file_info_without_file_data<P: AsRef<Path>>(path: P) -> Result<FileInfo, Box<dyn Error>> {
+    let file_name = get_file_name(path.as_ref())?;
+    Ok(FileInfo::new(file_name, path.as_ref().to_string_lossy().to_string(), Box::new(vec![])))
 }
 
 pub fn rm_file<P: AsRef<Path>>(path: P) -> io::Result<()> {

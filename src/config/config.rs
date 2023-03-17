@@ -117,6 +117,7 @@ impl Default for BackerConfig {
 pub struct BackerServer {
     pub ip: String,
     pub port: u16,
+    pub secret: String,
 }
 
 impl Default for BackerServer {
@@ -124,6 +125,7 @@ impl Default for BackerServer {
         Self {
             ip: String::from(""),
             port: 0,
+            secret: String::from(""),
         }
     }
 }

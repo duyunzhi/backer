@@ -23,13 +23,20 @@ pub enum PacketType {
     Client,
 }
 
-pub struct TcpHandler {
+pub struct Dispatch {
     running: Arc<AtomicBool>,
     handler: Arc<Mutex<HashMap<String, Box<dyn Handler>>>>,
 }
 
-impl TcpHandler {
-    pub fn new() -> Self {
+impl Dispatch {
+    pub fn new_for_client() -> Self {
+        Self {
+            running: Arc::new(AtomicBool::new(false)),
+            handler: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub fn new_for_server() -> Self {
         Self {
             running: Arc::new(AtomicBool::new(false)),
             handler: Arc::new(Mutex::new(HashMap::new())),
@@ -74,11 +81,11 @@ pub struct TcpServer {
     running: Arc<AtomicBool>,
     rt: Runtime,
     threads: Mutex<Vec<JoinHandle<()>>>,
-    handler: Arc<TcpHandler>,
+    handler: Arc<Dispatch>,
 }
 
 impl TcpServer {
-    pub fn new(addr: SocketAddr, mut handler: TcpHandler) -> Self {
+    pub fn new(addr: SocketAddr, mut handler: Dispatch) -> Self {
         let running = Arc::new(AtomicBool::new(false));
         handler.running = running.clone();
         Self {
@@ -154,12 +161,12 @@ pub struct TcpClient {
     running: Arc<AtomicBool>,
     rt: Runtime,
     threads: Mutex<Vec<JoinHandle<()>>>,
-    handler: Arc<TcpHandler>,
+    handler: Arc<Dispatch>,
     stream: Option<TcpStream>,
 }
 
 impl TcpClient {
-    pub fn new(addr: SocketAddr, mut handler: TcpHandler) -> Self {
+    pub fn new(addr: SocketAddr, mut handler: Dispatch) -> Self {
         let running = Arc::new(AtomicBool::new(false));
         handler.running = running.clone();
         Self {

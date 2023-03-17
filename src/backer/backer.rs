@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -13,9 +14,12 @@ use tokio::{runtime::{Builder, Runtime}, task::JoinHandle};
 
 use crate::config::config::{AliyunOssServer, BackerConfig, BackerServer, QiniuServer, TencentOssServer};
 use crate::consts;
-use crate::packet::message::{FilesInfoMessage, Message};
-use crate::packet::tcp_packet::TcpClient;
+use crate::packet::message::{FileBuffer, Message, Protocol};
+use crate::packet::tcp_packet::{Dispatch, Handler, TcpClient};
 use crate::utils::file;
+
+const BACKUP_TO_BACKER_SERVER_COMPLETED: AtomicBool = AtomicBool::new(false);
+const MAX_BUFFER_LENGTH: u64 = 20480;
 
 pub enum State {
     Running,
@@ -103,19 +107,26 @@ impl Backer {
         let target_path = file::get_archive_dir_path().join(archive_file_name).to_str().unwrap().to_string();
 
         let res = file::compress_files(cfg.backup_files.clone(), target_path.clone(), compress_mode);
+        info!("Compress files success.");
         match res {
             Ok(_) => {
-                let archive_file = file::read_file_info(target_path.clone());
+                let archive_file = file::read_file_info_without_file_data(target_path.clone());
                 match archive_file {
                     Ok(archive_file_info) => {
                         for target in cfg.backup_target.clone() {
                             match target.as_str() {
                                 consts::BACKUP_TARGET_BACKER_SERVER => {
-                                    let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), archive_file_info.file_data.clone());
-                                    let backer_server = cfg.backer_server.clone();
-                                    self.threads.lock().unwrap().push(self.rt.spawn(async move {
-                                        Self::backup_file_to_backer_server(backer_server.clone(), file_info).await;
-                                    }));
+                                    let archive_file = file::read_file_info(target_path.clone());
+                                    match archive_file {
+                                        Ok(archive_file_info) => {
+                                            let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), archive_file_info.file_data.clone());
+                                            let backer_server = cfg.backer_server.clone();
+                                            self.threads.lock().unwrap().push(self.rt.spawn(async move {
+                                                Self::backup_file_to_backer_server(backer_server.clone(), file_info).await;
+                                            }));
+                                        }
+                                        Err(e) => error!("read archive file failed: {}", e)
+                                    }
                                 }
                                 consts::BACKUP_TARGET_QINIU => {
                                     let file_info = file::FileInfo::new(archive_file_info.file_name.clone(), archive_file_info.absolute_path.clone(), Default::default());
@@ -163,9 +174,18 @@ impl Backer {
 
     async fn backup_file_to_backer_server(cfg: BackerServer, archive_file: file::FileInfo) {
         info!("start backup_file_to_backer_server");
+        BACKUP_TO_BACKER_SERVER_COMPLETED.swap(false, Ordering::Relaxed);
         let addr: SocketAddr = format!("{}:{}", cfg.ip, cfg.port).parse().unwrap();
-        let message = Message::FilesInfoMessage(FilesInfoMessage::new(vec![archive_file]));
-        TcpClient::send_one(addr, message);
+        let tcp_handler = Dispatch::new_for_client();
+        tcp_handler.add_handle(String::from("backer_handle"), Box::new(BackerHandle::new(archive_file)));
+        let mut client = TcpClient::new(addr, tcp_handler);
+        client.start();
+        client.send_message(Message::Auth(cfg.secret));
+        loop {
+            if BACKUP_TO_BACKER_SERVER_COMPLETED.load(Ordering::Relaxed) {
+                break;
+            }
+        }
         info!("end backup_file_to_backer_server");
     }
 
@@ -192,6 +212,53 @@ impl Backer {
     async fn backup_file_to_tencent_oss(_cfg: TencentOssServer, _archive_file: file::FileInfo) {
         info!("start backup_file_to_tencent_oss");
         info!("end backup_file_to_tencent_oss");
+    }
+}
+
+
+struct BackerHandle {
+    archive_file: file::FileInfo,
+}
+
+impl BackerHandle {
+    pub fn new(archive_file: file::FileInfo) -> Self {
+        Self { archive_file }
+    }
+}
+
+impl Handler for BackerHandle {
+    fn handel(&self, message: &Message, protocol: &mut Protocol) {
+        match message {
+            Message::Phrase(echo) => {
+                info!("receive phrase message: {}", echo);
+            }
+            Message::Authorize(authorize) => {
+                if *authorize {
+                    info!("Authorize success, start sync file.");
+                    let fb = FileBuffer::new(self.archive_file.file_name.clone(), self.archive_file.file_data.to_vec());
+                    let fb_size = fb.get_buffer_length() as f64;
+                    let mut completed_buf_size: f64 = 0.0;
+                    let buffers = fb.cut_file_buff(MAX_BUFFER_LENGTH);
+                    for buffer in buffers {
+                        completed_buf_size += buffer.get_buffer_length() as f64;
+                        let msg = Message::FileBuffer(buffer);
+                        let res = protocol.send_message(msg);
+                        if let Err(e) = res {
+                            error!("send file buffer failed: {}", e);
+                            return;
+                        }
+                        let percents = format!("{:.0}", (completed_buf_size / fb_size) * 100.0);
+                        print!("\rback up file: {}%", percents);
+                    }
+                    BACKUP_TO_BACKER_SERVER_COMPLETED.swap(true, Ordering::Relaxed);
+                    println!();
+                    info!("end sync file.");
+                } else {
+                    error!("Authorize failed!");
+                }
+            }
+            _ => {}
+        }
     }
 }
 

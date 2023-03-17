@@ -1,6 +1,6 @@
 # files or folders that need to be backed up. multiple files are supported.
 backup-files:
-  - /Users/Yunis/Desktop/deepflow-yaml
+  - /Users/Yunis/Desktop/file
 
 # compress mode. supported zip, tar.gz. default is tar.gz.
 compress-mode: tar.gz
@@ -16,6 +16,7 @@ backup-target:
 backer-server:
   ip: 127.0.0.1
   port: 9618
+  secret: backer
 
 qiniu:
   access-key:
