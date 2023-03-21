@@ -97,13 +97,13 @@ impl Handler for BackerServerHandle {
                         let _ = file.write(file_buff.buffer.as_slice());
                         info!("success backup file!  file name: '{}'", file_buff.file_name);
                     } else {
-                        error!("write [{}] file end failed.", file_buff.file_name.as_str())
+                        error!("write [{}] file end failed.", file_buff.file_name.as_str());
                     }
                 } else {
                     if let Some(mut file) = self.backup_files.lock().unwrap().get(file_buff.file_name.as_str()) {
                         let _ = file.write(file_buff.buffer.as_slice());
                     } else {
-                        error!("write file failed. not fond [{}] file.", file_buff.file_name.as_str())
+                        error!("write file failed. not fond [{}] file.", file_buff.file_name.as_str());
                     }
                 }
             }

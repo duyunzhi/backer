@@ -18,7 +18,7 @@ use crate::packet::message::{FileBuffer, Message, Protocol};
 use crate::packet::tcp_packet::{Dispatch, Handler, TcpClient};
 use crate::utils::file;
 
-const MAX_BUFFER_LENGTH: u64 = 20480;
+const MAX_BUFFER_LENGTH: usize = 20480;
 
 pub enum State {
     Running,

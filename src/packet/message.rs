@@ -65,32 +65,15 @@ impl FileBuffer {
         self.buffer.len()
     }
 
-    pub fn cut_file_buff(&self, max_buffer_length: u64) -> Vec<Self> {
+    pub fn cut_file_buff(&self, max_buffer_length: usize) -> Vec<Self> {
         let mut buffers = vec![];
-        let buffer_length = self.buffer.len() as u64;
-        if max_buffer_length >= buffer_length {
-            buffers.push(Self::new_part(true, true, self.file_name.clone(), self.buffer.clone()))
-        } else {
-            let mut part_size = buffer_length / max_buffer_length;
-            if buffer_length % max_buffer_length != 0 {
-                part_size += 1
-            }
-            let buffer = self.buffer.as_slice();
-            for i in 0..part_size {
-                let part = Self::new_part(
-                    i == 0,
-                    i == part_size - 1,
-                    self.file_name.clone(),
-                    if i < part_size - 1 {
-                        let start_index = if i == 0 { 0 as usize } else { (max_buffer_length * i) as usize };
-                        let end_index = if i == 0 { max_buffer_length as usize } else { (max_buffer_length * (i + 1)) as usize };
-                        buffer[start_index..end_index].to_vec()
-                    } else {
-                        buffer[(max_buffer_length * i) as usize..buffer_length as usize].to_vec()
-                    },
-                );
-                buffers.push(part);
-            }
+        let chunks = self.buffer.chunks(max_buffer_length);
+        let chunks_size = chunks.len();
+        let mut i = 0;
+        for chunk in chunks {
+            let part = Self::new_part(i == 0, i == chunks_size - 1, self.file_name.clone(), chunk.to_vec());
+            buffers.push(part);
+            i += 1;
         }
         buffers
     }
